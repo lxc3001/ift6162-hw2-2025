@@ -14,3 +14,7 @@ build/
 htmlcov/
 .DS_Store
 
+# Paper files (reference only, not our work)
+paper.pdf
+paper.tex
+
