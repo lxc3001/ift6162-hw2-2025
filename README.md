@@ -22,6 +22,16 @@ Generates:
 - `figure4_steady_state.png`: Steady-state reaction rate and temperature profiles
 - `figure5_concentrations.png`: Concentration profiles
 
+## Results
+
+### Figure 3: Dynamic States in Time and Space
+
+![Figure 3](figure3_states_3d.png)
+
+### Figure 4: Steady-State Profiles
+
+![Figure 4](figure4_steady_state.png)
+
 ## Reference
 
 Cantisani, N., Svensen, J. L., Hansen, O. F., & Jørgensen, J. B. (2024). Dynamic modeling and simulation of a flash clay calciner.
