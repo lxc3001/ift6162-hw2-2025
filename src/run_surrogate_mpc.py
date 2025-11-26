@@ -11,7 +11,12 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import time
+import sys
 from pathlib import Path
+
+# Add src to path for imports
+ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(Path(__file__).parent))
 
 from flash_calciner import SimplifiedFlashCalciner, N_SPECIES, L
 from surrogate_flash_calciner import (
@@ -33,7 +38,8 @@ plt.rcParams.update({
 def load_surrogate():
     """Load trained surrogate model."""
     print("Loading surrogate model...", flush=True)
-    ckpt = torch.load('surrogate_model.pt', weights_only=False)
+    model_path = ROOT / "models" / "surrogate_model.pt"
+    ckpt = torch.load(model_path, weights_only=False)
     
     model = SpatiallyAwareDynamics(N_z=ckpt['N_z'])
     model.load_state_dict(ckpt['model_state_dict'])
@@ -271,14 +277,15 @@ def plot_results(mpc_hist, baseline_hist, alpha_target=0.95):
                 bbox=dict(boxstyle='round', facecolor='lightgreen', alpha=0.8))
     
     plt.tight_layout()
-    plt.savefig('mpc_control_results.png', dpi=150, bbox_inches='tight')
-    print("\n✓ Saved: mpc_control_results.png", flush=True)
+    fig_path = ROOT / "figures" / "mpc_control_results.png"
+    plt.savefig(fig_path, dpi=150, bbox_inches='tight')
+    print(f"\n✓ Saved: {fig_path}", flush=True)
     plt.close()
     
     return savings
 
 
-def plot_state_profiles(mpc_hist, simulator, save_name='mpc_state_profiles.png'):
+def plot_state_profiles(mpc_hist, simulator, save_name=None):
     """Plot spatial profiles at different times."""
     N_z = 20
     z = np.linspace(0, L, N_z)
@@ -330,6 +337,8 @@ def plot_state_profiles(mpc_hist, simulator, save_name='mpc_state_profiles.png')
     
     plt.suptitle('Spatial Profiles During MPC Control', fontsize=12, fontweight='bold')
     plt.tight_layout()
+    if save_name is None:
+        save_name = ROOT / "figures" / "mpc_state_profiles.png"
     plt.savefig(save_name, dpi=150, bbox_inches='tight')
     print(f"✓ Saved: {save_name}", flush=True)
     plt.close()

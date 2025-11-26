@@ -25,7 +25,10 @@ import time
 import sys
 from typing import Tuple, Optional, Dict, List
 
-# Import physics model
+# Import physics model (same directory)
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent))
 from flash_calciner import SimplifiedFlashCalciner, N_SPECIES, L
 
 
@@ -1121,7 +1124,7 @@ def main():
     print("Step 5: Saving results...", flush=True)
     print("-" * 50, flush=True)
     
-    save_path = Path("surrogate_model.pt")
+    save_path = Path(__file__).parent.parent / "models" / "surrogate_model.pt"
     # Convert numpy arrays to lists for safe serialization (PyTorch 2.6+)
     safe_norm_params = {k: v.tolist() if isinstance(v, np.ndarray) else v 
                         for k, v in norm_params.items()}
@@ -1144,8 +1147,9 @@ def main():
     ax.set_title('Surrogate Training')
     ax.legend()
     ax.grid(True, alpha=0.3)
-    plt.savefig('surrogate_training.png', dpi=150, bbox_inches='tight')
-    print("  ✓ Saved: surrogate_training.png", flush=True)
+    fig_path = Path(__file__).parent.parent / "figures" / "surrogate_training.png"
+    plt.savefig(fig_path, dpi=150, bbox_inches='tight')
+    print(f"  ✓ Saved: {fig_path}", flush=True)
     plt.close()
     
     print("\n" + "=" * 70, flush=True)
