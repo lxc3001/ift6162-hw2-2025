@@ -20,6 +20,7 @@ from calciner import (
     CalcinerSimulator,
     SpatiallyAwareDynamics,
     SurrogateModel,
+    SurrogateCalcinerEnv,
 )
 
 
@@ -137,7 +138,24 @@ def test_part2():
     print(f"  Surrogate: {surr_time:.2f} ms/step")
     print(f"  Speedup: {phys_time / surr_time:.0f}×")
     
-    print("\n✓ Part 2 surrogate works!")
+    # Test the RL environment wrapper
+    print(f"\nTesting RL environment wrapper...")
+    env = SurrogateCalcinerEnv(surrogate, episode_length=20, alpha_min=0.95)
+    
+    obs = env.reset(seed=42)
+    print(f"  State dim: {obs.shape[0]}")
+    print(f"  Action dim: {env.action_dim}")
+    
+    # Run a few steps
+    total_reward = 0
+    for step in range(5):
+        action = np.random.uniform(1000, 1200)
+        obs, reward, done, info = env.step(action)
+        total_reward += reward
+        if step == 0:
+            print(f"  Step {step}: α={info['alpha']:.2%}, T_g_in={info['T_g_in']:.0f}K, r={reward:.2f}")
+    
+    print("\n✓ Part 2 surrogate and environment work!")
     return True
 
 

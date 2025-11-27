@@ -11,41 +11,17 @@ The assignment has two parts:
 | **Part 1** | Simplified 1D dynamics | 3 | REINFORCE, PPO, TD3 |
 | **Part 2** | Full PDE-based dynamics | 140 | Scale up your best algorithm |
 
-## Background: The Chemistry
+## Background
 
-### What is Kaolinite?
+A flash calciner is an industrial reactor that converts clay into a valuable material used in high-performance concrete. The chemistry is straightforward: heating kaolinite (Al₂Si₂O₅(OH)₄) removes hydroxyl groups, producing metakaolin (Al₂Si₂O₇) and water vapor. This dehydroxylation reaction is endothermic—it absorbs heat—so we must continuously supply energy.
 
-**Kaolinite** (Al₂Si₂O₅(OH)₄) is a clay mineral—the most common component of kaolin clay, used in ceramics, paper, and cement production. Its crystal structure contains hydroxyl groups (OH) that can be removed by heating.
+The reactor itself is a 10-meter vertical tube. Clay particles enter at the top and fall downward by gravity, while hot gas (nitrogen heated to 900-1300 K) flows upward. This counter-current arrangement maximizes heat transfer: the hottest gas meets the most-reacted particles at the bottom, while cooler gas preheats incoming clay at the top.
 
-**Metakaolin** (Al₂Si₂O₇) is the dehydroxylated product—a highly reactive pozzolan used in high-performance concrete. The transformation is:
+Your control input is the gas inlet temperature $T_{g,in}$. Higher temperatures accelerate the reaction, but consume more energy to heat the gas. Lower temperatures save energy, but risk incomplete conversion—particles may exit before fully reacting. The objective is to achieve a target conversion $\alpha \geq \alpha_{min}$ while minimizing heater power.
 
-$$\text{Al}_2\text{Si}_2\text{O}_5(\text{OH})_4 \xrightarrow{\text{heat}} \text{Al}_2\text{Si}_2\text{O}_7 + 2\text{H}_2\text{O}$$
+Conversion $\alpha$ is simply the fraction of kaolinite that has transformed: $\alpha = 1 - c_{\text{out}} / c_{\text{in}}$, where concentrations are measured at the outlet. For example, $\alpha = 0.95$ means 95% of the clay has converted to metakaolin.
 
-This **dehydroxylation** is endothermic (requires energy input) and occurs at 450-850°C. The reaction consumes heat, which must be supplied by hot gas.
-
-### What is a "Species"?
-
-In chemical engineering, a **species** is a distinct chemical compound. The flash calciner tracks 5 species:
-
-| Index | Species | Phase | Description |
-|-------|---------|-------|-------------|
-| 0 | Kaolinite (reactant) | Solid | The clay we're converting |
-| 1 | Quartz | Solid | Inert impurity (SiO₂) |
-| 2 | Metakaolin (product) | Solid | What we want to produce |
-| 3 | N₂ (carrier gas) | Gas | Inert, provides convection |
-| 4 | H₂O (water vapor) | Gas | Released by reaction |
-
-The reactor is a 10m vertical tube where solid particles fall downward while hot gas flows upward (counter-current). We track the **concentration** (mol/m³) of each species at 20 positions along the reactor length.
-
-### Control Objective
-
-**Conversion** $\alpha$ is the fraction of kaolinite that has reacted:
-
-$$\alpha = 1 - \frac{c_{\text{kaolinite, outlet}}}{c_{\text{kaolinite, inlet}}}$$
-
-The control problem: supply enough heat (via $T_{g,in}$) to achieve target conversion $\alpha_{min}$ while minimizing energy cost. Too cold → incomplete reaction; too hot → wasted energy.
-
-Read `docs/model.md` for the full PDE-based physics model.
+The full physics involves tracking five chemical species (kaolinite, metakaolin, quartz, nitrogen, water) at 20 spatial positions, plus temperature profiles for both solid and gas phases—a 140-dimensional state. Part 1 simplifies this to a scalar model that captures the essential control challenge. Part 2 tackles the full complexity using a neural surrogate.
 
 ---
 
@@ -120,111 +96,43 @@ $$r(s, a) = -\underbrace{c \cdot (T_{g,in} - 300)}_{\text{energy cost}} - \under
 
 The energy cost is linear in temperature (heating gas from ambient). The constraint penalty is a soft barrier—you can violate $\alpha_{min}$ but it's expensive. This is a **constrained MDP** relaxed via penalty methods.
 
-### Tasks
+### What to Implement
 
-1. **REINFORCE** (15 points)
-   - Implement the REINFORCE algorithm with baseline
-   - Use a linear or small neural network policy
-   - Train for 200+ episodes and plot learning curves
+Start with REINFORCE (15 points). The algorithm should maintain a policy parametrization (linear or small neural network) and use the Monte Carlo return as an estimate of the state-action value. Include a baseline to reduce variance—either a learned value function or the mean return works. Train for at least 200 episodes and track the return over time.
 
-2. **PPO** (20 points)
-   - Implement Proximal Policy Optimization
-   - Include: clipped objective, value function, GAE (optional)
-   - Compare sample efficiency to REINFORCE
+Next implement PPO (20 points). The clipped surrogate objective prevents excessively large policy updates, which is essential for stable learning. You will need both a policy network and a value network. Consider using generalized advantage estimation to further reduce variance, though this is optional. Compare the sample efficiency to REINFORCE—how many episodes does each algorithm need to reach similar performance?
 
-3. **TD3** (15 points)
-   - Implement Twin Delayed DDPG
-   - Include: twin critics, delayed policy updates, target smoothing
-   - Use a replay buffer
+Finally, implement TD3 (15 points). This algorithm uses twin Q-networks to reduce overestimation bias, delayed policy updates to decouple actor from critic training, and target policy smoothing for regularization. You will need a replay buffer to store transitions. TD3 should be more sample-efficient than the policy gradient methods, but requires careful tuning of the exploration noise schedule.
 
-### Evaluation
+For all three algorithms, compare against the constant-temperature baseline provided in `calciner.ConstantTemperatureController`. This baseline simply sets $T_{g,in} = 1261$ K throughout the episode, achieving high conversion at the cost of maximum energy consumption. Your learned policies should achieve similar conversion while reducing energy use.
 
-Compare your algorithms against the constant-temperature baseline:
-
-```python
-from calciner import ConstantTemperatureController, evaluate_baseline
-
-baseline = ConstantTemperatureController(T_g_in=1261.15)
-results = evaluate_baseline(env, baseline)
-print(f"Baseline: {results}")
-```
-
-Report:
-- Learning curves (return vs episode)
-- Final policy performance (energy, constraint violations)
-- Policy visualization (what temperature does it choose vs. state?)
+Report learning curves showing return versus episode number for each algorithm. Analyze the final policy: what is its average energy consumption, how often does it violate the conversion constraint, and how does the chosen temperature vary with the state? The last question is particularly revealing—does the policy learn to modulate temperature based on current conversion and the target threshold?
 
 ---
 
 ## Part 2: Full 140-Dimensional Problem (50 points)
 
-### The Challenge
+The simplified model ignores spatial dynamics. The real calciner is a 10-meter reactor where temperature and concentration profiles evolve along the length. The full state has 140 dimensions: 5 species × 20 spatial cells for concentrations, plus 2 temperatures × 20 cells. Simulating this PDE-based model requires integrating a stiff ODE system at approximately 25 ms per step, which makes RL training impractical without approximation.
 
-The simplified model ignores spatial dynamics. The real calciner is a 10m reactor where temperature and concentration profiles evolve along the length. The full state has 140 dimensions:
-- 5 species × 20 spatial cells = 100 concentration values
-- 2 temperatures × 20 cells = 40 temperature values
+The neural surrogate provided in `models/surrogate_model.pt` approximates these dynamics in under 0.02 ms—a 60× speedup. It was trained on 10,000 state transitions sampled from diverse initial conditions (cold starts, partial reaction fronts, near-steady-state), achieving 19% mean relative error on challenging 80-step rollouts with time-varying controls. This accuracy suffices for learning policies, especially since we can validate on the true physics simulator afterward.
 
-Simulating this PDE-based model is expensive (~25ms per step), making RL training impractical. Instead, you will use a **neural surrogate** that approximates the dynamics in ~0.02ms.
+We provide a Gym-compatible environment that wraps the surrogate and handles state normalization, conversion computation, and reward shaping. You are free to modify the reward function or experiment with different state representations if you wish, but this is optional. The main task is adapting your RL algorithms to the higher-dimensional state space.
 
-### Loading the Surrogate
+### What to Implement
 
-```python
-import torch
-from calciner import SpatiallyAwareDynamics, SurrogateModel, CalcinerSimulator
-import numpy as np
+Adapt your best-performing algorithm from Part 1 to work with the 140-dimensional state (25 points). The state vector concatenates concentrations and temperatures across all spatial cells, so you face a representation learning challenge. A linear policy is unlikely to work—you will need a neural network with sufficient capacity. Consider how to encode spatial structure: should your policy use fully connected layers, or would 1D convolutions (like the surrogate itself uses) better capture the fact that neighboring cells interact?
 
-# Load trained surrogate
-checkpoint = torch.load('models/surrogate_model.pt', weights_only=False)
-model = SpatiallyAwareDynamics(N_z=checkpoint['N_z'])
-model.load_state_dict(checkpoint['model_state_dict'])
+You may need different hyperparameters than Part 1. The higher dimensionality can slow learning, so you might increase network capacity, adjust learning rates, or change the exploration noise schedule. If you implemented TD3, you might need a larger replay buffer or different batch sizes. If you used PPO, the entropy coefficient and value function loss weighting may require tuning.
 
-norm_params = {k: np.array(v) for k, v in checkpoint['norm_params'].items()}
-surrogate = SurrogateModel(model, norm_params)
+Start simple. A reasonable first policy is one that looks only at the outlet conversion (the first element of the state after unpacking) and outputs a temperature based on how far that conversion is from the target. This ignores spatial structure but establishes a baseline. From there, incorporate more of the state: perhaps the temperature profile, or the concentration gradient along the reactor.
 
-# Also have access to the true physics simulator for validation
-simulator = CalcinerSimulator(N_z=20, dt=0.1)
-```
+### Evaluation
 
-### Creating an Environment
+Validate your learned policy on the true physics simulator (15 points), not just the surrogate. This tests whether the policy generalizes beyond the approximation errors inherent in the neural dynamics model. Run multiple episodes with different initial conditions and compare performance to the constant-temperature baseline.
 
-You need to create a Gym-like environment wrapper around the surrogate. Key considerations:
+Beyond scalar metrics (energy consumption, constraint violations), visualize the closed-loop behavior. Plot conversion over time, the control trajectory, and—most revealingly—the spatial profiles. Does the learned policy create smooth temperature gradients? Does it avoid creating reaction fronts that could damage equipment? These qualitative assessments matter in process control applications.
 
-1. **State representation**: The 140D state may need preprocessing
-   - Flatten vs. keep spatial structure?
-   - Normalize concentrations and temperatures differently?
-   
-2. **Reward design**: 
-   - Conversion: computed from kaolinite concentration at outlet
-   - Energy: function of $T_{g,in}$
-   - How to balance the two?
-
-3. **Episode termination**:
-   - Fixed horizon?
-   - Early termination on constraint violation?
-
-### Tasks
-
-1. **Environment Design** (10 points)
-   - Create a Gym-compatible environment using the surrogate
-   - Document your state/action/reward design choices
-
-2. **Algorithm Scaling** (25 points)
-   - Adapt your best algorithm from Part 1 to the 140D problem
-   - You may need:
-     - Larger neural networks
-     - Different hyperparameters
-     - State preprocessing/normalization
-
-3. **Evaluation** (15 points)
-   - Validate learned policy on the **true physics simulator**
-   - Compare to constant-temperature baseline
-   - Visualize: state profiles, control trajectory, conversion over time
-
-### Hints
-
-- The surrogate is differentiable—you could compute policy gradients through the dynamics
-- The 140D state has structure: use it (e.g., 1D convolutions like the surrogate itself)
-- Start with a simple policy (e.g., just output $T_{g,in}$ as function of outlet conversion)
+The surrogate is differentiable, so policy gradient computation can backpropagate through the dynamics model. Whether you exploit this is up to you—some algorithms naturally benefit from differentiable simulators, while others do not.
 
 ---
 
