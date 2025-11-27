@@ -1,9 +1,20 @@
 """
-Baselines for Flash Calciner Control
+RL Environment for Flash Calciner Control (Part 1: Simplified Problem)
 
-Includes:
-- CalcinerEnv: Gym-like environment for RL training
-- Constant temperature baseline
+This module provides a Gym-like environment for training RL agents
+on the simplified 1D control problem.
+
+State: 3-dimensional
+  - α: current conversion fraction
+  - α_min: current target minimum conversion
+  - t/T: normalized time in episode
+
+Action: 1-dimensional (continuous)
+  - T_g,in: gas inlet temperature [900, 1300] K
+
+Reward: energy minimization with constraint penalty
+  - Negative heater power (encourages efficiency)
+  - Quadratic penalty for constraint violations (α < α_min)
 """
 
 import numpy as np

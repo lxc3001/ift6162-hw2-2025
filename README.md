@@ -1,105 +1,77 @@
-# Flash Clay Calciner - Neural Surrogate MPC
+# Flash Calciner Control
 
-Economic Model Predictive Control for flash clay calciner using a learned neural surrogate.
+Deep reinforcement learning for industrial process control.
 
-## Overview
+## Assignment
 
-This project implements:
-1. **Physics-based PDE model** of a flash clay calciner (140-dimensional state)
-2. **Neural surrogate** that learns discrete-time dynamics (61× faster than physics)
-3. **MPPI controller** for energy-optimal control with conversion constraints
-4. **RL baselines** (TD3, PPO) for comparison
+See [ASSIGNMENT.md](ASSIGNMENT.md) for the full problem statement.
 
-## Key Results
-
-| Metric | Value |
-|--------|-------|
-| Surrogate speedup | **61×** (25ms vs 1.5s per rollout) |
-| Energy savings | **72%** vs constant-temperature baseline |
-| Conversion target | ✓ Achieved (96.8% vs 95% target) |
-| MPC solve time | 1.5s/step (CPU) |
-
-## Project Structure
-
-```
-├── calciner/                      # Main package
-│   ├── __init__.py
-│   ├── physics.py                 # PDE-based flash calciner model
-│   ├── surrogate.py               # Neural surrogate + training
-│   ├── mpc.py                     # MPC controllers (MPPI, gradient, classical)
-│   ├── baselines.py               # Env for RL, constant-temp baseline
-│   └── rl/                        # RL algorithms
-│       ├── __init__.py
-│       ├── td3.py                 # TD3 (Twin Delayed DDPG)
-│       └── ppo.py                 # PPO (Proximal Policy Optimization)
-│
-├── scripts/                       # Entry point scripts
-│   ├── train.py                   # Train neural surrogate
-│   ├── evaluate_mpc.py            # Run MPC evaluation
-│   └── evaluate_rl.py             # Train and evaluate RL baselines
-│
-├── models/                        # Trained model weights
-│   └── surrogate_model.pt
-│
-├── figures/                       # Output figures
-│
-├── requirements.txt
-└── README.md
-```
+**TL;DR**: Implement REINFORCE, PPO, and TD3 to control a flash clay calciner.
 
 ## Quick Start
 
 ```bash
 # Install dependencies
-pip install -r requirements.txt
+pip install numpy torch matplotlib scipy
 
-# Train surrogate model
-python scripts/train.py
+# Test Part 1 environment
+python -c "
+from calciner import CalcinerEnv
+env = CalcinerEnv()
+obs = env.reset()
+print(f'Initial state: {obs}')
+for _ in range(5):
+    obs, reward, done, info = env.step(1100.0)
+    print(f'  α={info[\"alpha\"]:.2%}, reward={reward:.2f}')
+"
 
-# Evaluate MPC controller
-python scripts/evaluate_mpc.py
-
-# Train and evaluate RL baselines
-python scripts/evaluate_rl.py
+# Test surrogate loading
+python -c "
+import torch
+ckpt = torch.load('models/surrogate_model.pt', weights_only=False)
+print(f'Surrogate: {ckpt[\"N_z\"]}×140D state, dt={ckpt[\"dt\"]}s')
+"
 ```
 
-## Method
+## Project Structure
 
-### 1. Neural Surrogate
-
-Learns discrete-time dynamics of the 140D PDE system:
 ```
-x_{t+1} = f_θ(x_t, u_t)
+├── ASSIGNMENT.md          # ← Start here
+├── calciner/
+│   ├── physics.py         # Full PDE-based simulator (given)
+│   ├── surrogate.py       # Neural surrogate architecture (given)
+│   ├── mpc.py             # Simplified dynamics model (given)
+│   └── baselines.py       # Part 1 RL environment (given)
+├── models/
+│   └── surrogate_model.pt # Trained surrogate checkpoint (given)
+├── docs/
+│   └── model.md           # Physics documentation
+└── figures/               # Reference results
 ```
 
-- **Architecture**: Spatially-aware 1D convolutions (261K params)
-- **Training**: Residual learning on 900 physics simulation transitions
-- **Accuracy**: ~10% relative error (sufficient for MPC)
+## What's Provided
 
-### 2. MPPI Controller
+| Component | Description |
+|-----------|-------------|
+| `CalcinerEnv` | Gym-like environment for Part 1 (simplified 1D) |
+| `CalcinerSimulator` | Full 140D physics simulator |
+| `SurrogateModel` | Trained neural surrogate for fast simulation |
+| `ConstantTemperatureController` | Baseline controller for comparison |
 
-Model Predictive Path Integral control:
-- Samples 96 random control sequences
-- Rolls out trajectories using surrogate (in parallel)
-- Weights by cost, returns weighted average
+## What You Implement
 
-**Cost function**: Energy + soft conversion constraint + terminal temperature
+| Algorithm | Part | Points |
+|-----------|------|--------|
+| REINFORCE | 1 | 15 |
+| PPO | 1 | 20 |
+| TD3 | 1 | 15 |
+| 140D Environment | 2 | 10 |
+| Scaled Algorithm | 2 | 25 |
+| Evaluation | 2 | 15 |
 
-### 3. RL Baselines
+## Tips
 
-For comparison, we also implement:
-- **TD3**: Off-policy actor-critic with twin critics
-- **PPO**: On-policy with clipped objective
-
-## Physics Model
-
-Based on Cantisani et al. "Dynamic modeling and simulation of a flash clay calciner":
-
-- **Reaction**: Kaolinite → Metakaolin + 2H₂O (3rd order Arrhenius)
-- **State**: 5 species × 20 cells + 2 temperatures × 20 cells = 140D
-- **Discretization**: Finite volume with upwind convection
-
-## Reference
-
-Cantisani, N., Svensen, J. L., Hansen, O. F., & Jørgensen, J. B. (2024). 
-Dynamic modeling and simulation of a flash clay calciner.
+1. **Part 1**: Start simple. A linear policy can work for the 3D state.
+2. **Part 2**: The surrogate is differentiable—you can backprop through dynamics.
+3. **Debugging**: Visualize your policy's behavior, not just the reward curve.
+4. **Baselines**: Always compare to the constant-temperature controller.

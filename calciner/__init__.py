@@ -1,40 +1,38 @@
 """
-Flash Calciner - Neural Surrogate MPC
+Flash Calciner Control Package
 
-A package for energy-optimal control of flash clay calciners using:
-- Neural surrogate models for fast dynamics prediction
-- Model Predictive Control (MPPI, gradient-based)
-- Reinforcement Learning baselines (TD3, PPO)
-
-Modules:
-    physics: PDE-based flash calciner model
-    surrogate: Neural network surrogate + training
-    mpc: MPC controllers (MPPI, gradient, classical)
-    baselines: Environment and constant-temp baseline
-    rl: Reinforcement learning algorithms (TD3, PPO)
+This package provides:
+- Physics-based simulation of a flash clay calciner
+- Neural surrogate model for fast dynamics evaluation
+- RL environment for the simplified 1D control problem
 """
 
 from .physics import SimplifiedFlashCalciner, N_SPECIES, L
 from .surrogate import (
     CalcinerSimulator,
-    SurrogateModel,
     SpatiallyAwareDynamics,
-    MLPDynamics,
+    SurrogateModel,
     TransitionDataset,
     generate_training_data,
-    train_surrogate,
 )
-from .mpc import (
-    SurrogateMPPI,
-    SurrogateMPC,
-    CalcinerDynamics,
-    ClassicalMPC,
-)
-from .baselines import (
-    CalcinerEnv,
-    ConstantTemperatureController,
-    evaluate_baseline,
-)
+from .mpc import CalcinerDynamics
+from .baselines import CalcinerEnv, ConstantTemperatureController, evaluate_baseline
 
-__version__ = "0.1.0"
-
+__all__ = [
+    # Physics
+    'SimplifiedFlashCalciner',
+    'N_SPECIES',
+    'L',
+    # Surrogate
+    'CalcinerSimulator',
+    'SpatiallyAwareDynamics', 
+    'SurrogateModel',
+    'TransitionDataset',
+    'generate_training_data',
+    # Simplified dynamics
+    'CalcinerDynamics',
+    # RL Environment
+    'CalcinerEnv',
+    'ConstantTemperatureController',
+    'evaluate_baseline',
+]
