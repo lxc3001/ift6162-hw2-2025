@@ -1,5 +1,6 @@
 # Flash Calciner Control (HW2)
 
+Xuanchen Liu 20173286 / David Qi 20250126
 
 See `ASSIGNMENT.md` for the full problem statement and grading rubric.
 
